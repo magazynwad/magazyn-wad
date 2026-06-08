@@ -1,0 +1,27 @@
+name: Deploy Magazyn Wad
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'index_source.html'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Podmień hasło i zapisz jako index.html
+        run: |
+          sed 's/WPISZ_TUTAJ_SWOJE_HASLO/${{ secrets.TECH_PASSWORD }}/g' index_source.html > index.html
+
+      - name: Wgraj index.html z powrotem do repozytorium
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Deploy: aktualizacja index.html [skip ci]"
+          git push
