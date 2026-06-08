@@ -638,7 +638,7 @@ const FB_CONFIG = {
 
 // ── Konto techniczne — zmień hasło po pobraniu pliku! ──
 const TECH_EMAIL = 'magazyn.wad@gmail.com';
-const TECH_PASSWORD = 'WPISZ_TUTAJ_SWOJE_HASLO';
+const TECH_PASSWORD = 'MagazynWad1!';
 
 let _db = null;
 let _auth = null;
@@ -661,7 +661,7 @@ function initFirebase(){
       .catch(e => {
         console.error('❌ Firebase Auth błąd:', e.message);
         // Jeśli hasło nie zostało zmienione — spróbuj bez auth (tryb awaryjny)
-        if(TECH_PASSWORD === 'WPISZ_TUTAJ_SWOJE_HASLO') {
+        if(TECH_PASSWORD === 'MagazynWad1!') {
           console.warn('⚠️ Hasło techniczne nie zostało ustawione!');
           _fbReady = true;
           startFirebaseListeners();
@@ -5266,4 +5266,4 @@ window.addEventListener('DOMContentLoaded', function(){
 </div><!-- end appBody -->
 
 
-</body></html>
+</body></html> 
