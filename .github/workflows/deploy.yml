@@ -7,6 +7,9 @@ on:
     paths:
       - 'index_source.html'
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
