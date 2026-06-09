@@ -393,6 +393,8 @@ body.dark .date-range input[type=date]{background:#28283c;border-color:#36364a;c
   #mobileNav{display:block}
   #appBody{padding-top:110px;padding-bottom:0}
   .del-bar{bottom:12px!important}
+  #s-main{height:calc(100vh - 110px)!important;max-height:calc(100vh - 110px)!important;margin-top:0}
+  #s-session{height:calc(100vh - 110px)!important;max-height:calc(100vh - 110px)!important;margin-top:0}
 }
 @media(min-width:900px){
   #mobileNav{display:none!important}
@@ -849,7 +851,7 @@ function showFbStatus(ok){
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-const APP_VER = "2.40 (2026-06-05)";
+const APP_VER = "2.43 (2026-06-08)";
 
 // ── localStorage ─────────────────────────────────────────
 const LS_KEY = 'kodyKomponentow_codes';
@@ -983,6 +985,7 @@ function assignCodeToGroup(codeId, groupId){
 }
 
 function renderGroupsManage(){
+  const el = document.getElementById('groupsManageList');
   if(!el) return;
   const groups = getGroups();
   if(!groups.length){
@@ -3398,16 +3401,25 @@ function exportReport(fmt){
     const a=document.createElement('a'); a.href=url; a.download=reportFilename(sess,'csv'); a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     showToast('CSV pobrany!');
-  } else if(fmt==='html'){
-    const html=buildReportHTML(worker,from,to,entries,sess);
-    const blob=new Blob([html],{type:'text/html'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=reportFilename(sess,'html'); a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-    showToast('HTML pobrany!');
+  } else if(fmt==='html'||fmt==='pdf'){
+    const html=buildReportHTML(worker,from,to,entries,sess,fmt==='pdf');
+    if(fmt==='pdf'){
+      // Otwórz w nowej karcie i wywołaj drukowanie (Ctrl+P → Zapisz jako PDF)
+      const win=window.open('','_blank');
+      win.document.write(html);
+      win.document.close();
+      setTimeout(()=>{ win.focus(); win.print(); }, 600);
+      showToast('Otworzyłem raport — wybierz "Zapisz jako PDF" w drukarce!');
+    } else {
+      const blob=new Blob([html],{type:'text/html'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=reportFilename(sess,'html'); a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      showToast('HTML pobrany!');
+    }
   }
 }
-function buildReportHTML(worker,from,to,entries,sess){
+function buildReportHTML(worker,from,to,entries,sess,forPrint){
   const acc=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#2563EB';
   // Grupuj wpisy po kategorii
   const zlomEntries=entries.filter(e=>!e.category||e.category==='zlom');
@@ -3426,8 +3438,8 @@ function buildReportHTML(worker,from,to,entries,sess){
       // QR zawiera wszystkie dane do wklejenia w Excel: każde pole w osobnej kolumnie, Tab jako separator, Enter na końcu
       // Format: Lp\tKod\tIlość\tGrupa\tKategoria\tPracownik\n
       const qrData=`${lp}\t${e.code}\t${e.qty}\t${grupaNazwa}\t${katASCII}\t${entryWorker}\n`;
-      const qrSvg=makeQRsvg(qrData,80);
-      const bcSvg=makeBCsvg(e.code,180,60);
+      const qrSvg=makeQRsvg(qrData,120);
+      const bcSvg=makeBCsvg(e.code,200,65);
       return `<tr><td style="text-align:center;font-size:13px;font-weight:700;color:#6666a0">${lp}</td>
         <td style="font-family:monospace;font-size:15px;font-weight:800;padding:8px 12px">${e.code}</td>
         <td style="text-align:right;font-size:16px;font-weight:900;color:${acc};padding:8px 16px">${e.qty}</td>
@@ -3457,6 +3469,14 @@ function buildReportHTML(worker,from,to,entries,sess){
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Raport — ${worker}</title>
 <style>
 body{font-family:'Segoe UI',Arial,sans-serif;padding:28px;color:#1a1a2e;background:#fff}
+@media print{
+  body{padding:10px;font-size:11px}
+  button{display:none!important}
+  .no-print{display:none!important}
+  table{page-break-inside:auto}
+  tr{page-break-inside:avoid}
+  @page{margin:1cm;size:A4}
+}
 .hdr{background:${acc};color:#fff;padding:16px 20px;border-radius:10px;margin-bottom:20px}
 h1{margin:0;font-size:20px}p.s{margin:4px 0 0;font-size:12px;opacity:.8}
 table{width:100%;border-collapse:collapse}
@@ -4759,6 +4779,7 @@ window.addEventListener('DOMContentLoaded', function(){
       <button onclick="exportReport('xlsx')" style="padding:13px;border-radius:13px;background:#16a34a;border:none;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:20px">📗</span> Excel (z nazwą zakładki)</button>
       <button onclick="exportReport('csv')" style="padding:13px;border-radius:13px;background:#2563EB;border:none;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:20px">📄</span> CSV</button>
       <button onclick="exportReport('html')" style="padding:13px;border-radius:13px;background:var(--acc);border:none;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:20px">🌐</span> HTML (do druku)</button>
+      <button onclick="exportReport('pdf')" style="padding:13px;border-radius:13px;background:#7c3aed;border:none;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:20px">📕</span> PDF (drukuj/zapisz)</button>
       <button onclick="shareReport()" style="padding:13px;border-radius:13px;background:#25D366;border:none;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:20px">💬</span> Kopiuj tekst (WhatsApp/SMS)</button>
       <button onclick="hideModal('reportExportModal')" style="padding:10px;border-radius:12px;border:1px solid #e0e0f0;background:transparent;color:#6666a0;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Zamknij</button>
     </div>
