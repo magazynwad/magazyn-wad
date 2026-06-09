@@ -855,7 +855,7 @@ function showFbStatus(ok){
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-const APP_VER = "2.48 (2026-06-09)";
+const APP_VER = "2.49 (2026-06-09)";
 
 // ── localStorage ─────────────────────────────────────────
 const LS_KEY = 'kodyKomponentow_codes';
@@ -3525,12 +3525,19 @@ function buildReportHTML(worker,from,to,entries,sess,forPrint){
       const lp=startIdx+i+1;
       const grupaNazwa=getGroupName(e.group);
       const entryWorker=e.workerName||worker||'';
-      // Skróć tylko nazwę grupy jeśli za długa — kategoria i pozostałe dane pełne dla Excela
-      const grupaNazwaQR = grupaNazwa.length > 10 ? grupaNazwa.substring(0,10) : grupaNazwa;
-      const katQR = kategoria==='Do złomu' ? 'Do zlomu' : 'Zwrot na magazyn';
-      // Format: Lp\tKod\tIlosc\tGrupa\tKategoria\tPracownik\n  ← \n = nowy wiersz w Excelu
-      const qrData=`${lp}\t${e.code}\t${e.qty}\t${grupaNazwaQR}\t${katQR}\t${entryWorker}\n`;
-      // Dynamiczny rozmiar — więcej znaków = większy QR żeby moduły nie były za małe
+      // Usuń polskie znaki i skróć dla QR — tryb Alphanumeric = mniejszy kod = lepszy odczyt
+      function toQRstr(s){
+        return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+          .replace(/\u0142/g,'l').replace(/\u0141/g,'L') // ł Ł
+          .replace(/[^\x20-\x7E]/g,''); // usuń pozostałe nie-ASCII
+      }
+      const grupaNazwaQR = toQRstr(grupaNazwa).substring(0,10);
+      const katQR = kategoria==='Do złomu' ? 'Zlom' : 'Zwrot';
+      const pracownikQR = toQRstr(entryWorker);
+      const kodQR = toQRstr(e.code);
+      // Format: Lp\tKod\tIlosc\tGrupa\tKat\tPracownik\n  ← \n = nowy wiersz w Excelu
+      const qrData=`${lp}\t${kodQR}\t${e.qty}\t${grupaNazwaQR}\t${katQR}\t${pracownikQR}\n`;
+      // Dynamiczny rozmiar — więcej znaków = większy QR
       const qrSize = qrData.length <= 35 ? 110 : qrData.length <= 50 ? 130 : 150;
       const qrSvg=makeQRsvg(qrData,qrSize);
       const bcSvg=makeBCsvg(e.code,190,62);
@@ -3596,7 +3603,7 @@ td{border-bottom:1px solid #eee;vertical-align:middle}
   <b>📱 Jak wczytać dane z QR do Excela:</b><br>
   1. W Excelu kliknij komórkę A1 (lub pierwszą pustą komórkę w nowym wierszu)<br>
   2. Zeskanuj kod QR — dane trafią do kolumn: <b>Lp | Kod | Ilość | Grupa | Kategoria | Pracownik</b><br>
-  3. Kategoria: <b>Zlom</b> = Do złomu, <b>Zwrot</b> = Zwrot na magazyn<br>
+  3. Kategoria: <b>Zlom</b> = Do złomu &nbsp;|&nbsp; <b>Zwrot</b> = Zwrot na magazyn &nbsp;|&nbsp; Polskie znaki zastąpione (np. Zeliwo, KompDrobn)<br>
   4. Kursor automatycznie przejdzie do nowego wiersza po każdym skanowaniu
 </div>
 </body></html>`;
