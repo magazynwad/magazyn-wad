@@ -451,10 +451,12 @@ body.dark .date-range input[type=date]{background:#28283c;border-color:#36364a;c
   <div class="pin-box" id="pinBox">
     <div class="pin-title" id="pinTitle">PIN Administratora</div>
     <div class="pin-dots">
-      <div class="pin-dot filled" id="d0"></div>
-      <div class="pin-dot filled" id="d1"></div>
-      <div class="pin-dot filled" id="d2"></div>
-      <div class="pin-dot filled" id="d3"></div>
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d4"></div>
+      <div class="pin-dot" id="d5"></div>
     </div>
     <div class="pin-err hidden" id="pinErr">Błędny PIN</div>
     <div class="pin-grid">
@@ -851,7 +853,7 @@ function showFbStatus(ok){
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-const APP_VER = "2.43 (2026-06-08)";
+const APP_VER = "2.44 (2026-06-09)";
 
 // ── localStorage ─────────────────────────────────────────
 const LS_KEY = 'kodyKomponentow_codes';
@@ -1106,7 +1108,22 @@ function lsSavePins(pins){
   try{localStorage.setItem(LS_PINS, JSON.stringify(pins));}catch(e){}
 }
 function lsLoadPins(fallback){
-  try{const v=localStorage.getItem(LS_PINS);if(v)return JSON.parse(v);}catch(e){}
+  try{
+    const v=localStorage.getItem(LS_PINS);
+    if(v){
+      const pins=JSON.parse(v);
+      // Migracja z 4-cyfrowych na 6-cyfrowe
+      let changed=false;
+      ['admin','dismantling','transfer'].forEach(k=>{
+        if(pins[k] && pins[k].length < 6){
+          pins[k]=pins[k].padEnd(6,'0'); // np. "1234" → "123400"
+          changed=true;
+        }
+      });
+      if(changed){ localStorage.setItem(LS_PINS, JSON.stringify(pins)); }
+      return pins;
+    }
+  }catch(e){}
   return fallback;
 }
 function lsSaveThemes(themes){
@@ -1129,7 +1146,7 @@ let state = {
     transfer:    {dark:false, accIdx:1},
     admin:       {dark:false, accIdx:3}
   }),
-  pins: lsLoadPins({admin:"1234",dismantling:"0000",transfer:"0000"}),
+  pins: lsLoadPins({admin:"123456",dismantling:"000000",transfer:"000000"}),
   search: null,
   delTarget: null,
   impNew: [], impDup: [], impBad: [],
@@ -1242,24 +1259,64 @@ function goView(code) {
 //  PIN
 // ═══════════════════════════════════════════════════════
 let pinState = {val:'', target:'', nextScreen:''};
+let pinAttempts = {}; // {role: {count, lockedUntil}}
+const PIN_MAX_ATTEMPTS = 3;
+const PIN_LOCKOUT_MS = 5 * 60 * 1000; // 5 minut
+const PIN_LENGTH = 6;
+
+function getPinAttempts(role){
+  if(!pinAttempts[role]) pinAttempts[role]={count:0,lockedUntil:0};
+  return pinAttempts[role];
+}
+function isPinLocked(role){
+  const a=getPinAttempts(role);
+  if(a.lockedUntil && Date.now() < a.lockedUntil) return true;
+  if(a.lockedUntil && Date.now() >= a.lockedUntil){ a.count=0; a.lockedUntil=0; }
+  return false;
+}
+function pinLockMsg(role){
+  const a=getPinAttempts(role);
+  const secs=Math.ceil((a.lockedUntil-Date.now())/1000);
+  const mins=Math.ceil(secs/60);
+  return `Zbyt wiele błędów! Spróbuj za ${mins} min.`;
+}
+
 function showPin(role, screen) {
   const labels = {admin:"PIN Administratora",dismantling:"PIN — Demontaż",transfer:"PIN — Obsługa demontażu"};
   pinState = {val:'', target:role, nextScreen:screen};
   document.getElementById('pinTitle').textContent = labels[role] || 'PIN';
-  document.getElementById('pinErr').classList.add('hidden');
+  const errEl=document.getElementById('pinErr');
+  if(isPinLocked(role)){
+    errEl.textContent=pinLockMsg(role);
+    errEl.classList.remove('hidden');
+  } else {
+    errEl.classList.add('hidden');
+  }
   updatePinDots();
   document.getElementById('pinOverlay').classList.remove('hidden');
 }
+
 function pinPress(d) {
-  if (pinState.val.length >= 6) return;
+  if(isPinLocked(pinState.target)){
+    document.getElementById('pinErr').textContent=pinLockMsg(pinState.target);
+    document.getElementById('pinErr').classList.remove('hidden');
+    return;
+  }
+  if (pinState.val.length >= PIN_LENGTH) return;
   pinState.val += d;
   updatePinDots();
-  if (pinState.val.length >= state.pins[pinState.target].length) {
-    if (pinState.val === state.pins[pinState.target]) {
+  const expectedPin = state.pins[pinState.target];
+  if(!expectedPin) return;
+  if (pinState.val.length >= expectedPin.length) {
+    if (pinState.val === expectedPin) {
+      // Sukces — reset licznika
+      getPinAttempts(pinState.target).count = 0;
+      getPinAttempts(pinState.target).lockedUntil = 0;
+      // Zaplanuj auto-wylogowanie po 13 godzinach
+      scheduleAutoLogout(13 * 60 * 60 * 1000);
       setTimeout(() => {
         document.getElementById('pinOverlay').classList.add('hidden');
         if(pinState.target==='_worker'){
-          // Logowanie pracownika demontażu
           delete state.pins['_worker'];
           startOrResumeSession();
         } else {
@@ -1270,7 +1327,6 @@ function pinPress(d) {
           var _st=document.getElementById('searchTag'); if(_st)_st.classList.add('hidden');
           renderMain();
           showScreen('main');
-          // Otwórz wyszukiwarkę i ustaw focus
           setTimeout(function(){
             var sw=document.getElementById('searchWrap'); if(sw) sw.classList.add('visible');
             var sr=document.getElementById('searchRow'); if(sr) sr.classList.add('open');
@@ -1279,27 +1335,58 @@ function pinPress(d) {
         }
       }, 180);
     } else {
-      document.getElementById('pinErr').classList.remove('hidden');
-      [0,1,2,3].forEach(i => {
-        const d = document.getElementById('d'+i);
-        d.classList.add('err'); d.classList.remove('filled');
-      });
+      // Błędny PIN
+      const att = getPinAttempts(pinState.target);
+      att.count++;
+      const remaining = PIN_MAX_ATTEMPTS - att.count;
+      const errEl = document.getElementById('pinErr');
+      if(att.count >= PIN_MAX_ATTEMPTS){
+        att.lockedUntil = Date.now() + PIN_LOCKOUT_MS;
+        errEl.textContent = `Zablokowano na 5 minut!`;
+      } else {
+        errEl.textContent = `Błędny PIN! Pozostało prób: ${remaining}`;
+      }
+      errEl.classList.remove('hidden');
+      for(let i=0;i<PIN_LENGTH;i++){
+        const dot=document.getElementById('d'+i);
+        if(dot){ dot.classList.add('err'); dot.classList.remove('filled'); }
+      }
       setTimeout(() => {
         pinState.val = '';
-        document.getElementById('pinErr').classList.add('hidden');
+        if(!isPinLocked(pinState.target)) errEl.classList.add('hidden');
         updatePinDots();
-      }, 400);
+      }, 600);
     }
   }
 }
+
 function pinBackspace() { pinState.val = pinState.val.slice(0,-1); updatePinDots(); }
 function pinCancel() { document.getElementById('pinOverlay').classList.add('hidden'); showScreen('roles'); }
 function updatePinDots() {
-  [0,1,2,3].forEach(i => {
-    const d = document.getElementById('d'+i);
-    d.classList.toggle('filled', i < pinState.val.length);
-    d.classList.remove('err');
-  });
+  for(let i=0;i<PIN_LENGTH;i++){
+    const dot=document.getElementById('d'+i);
+    if(dot){
+      dot.classList.toggle('filled', i < pinState.val.length);
+      dot.classList.remove('err');
+    }
+  }
+}
+
+// Auto-wylogowanie po 13 godzinach
+let _autoLogoutTimer = null;
+function scheduleAutoLogout(ms){
+  if(_autoLogoutTimer) clearTimeout(_autoLogoutTimer);
+  _autoLogoutTimer = setTimeout(()=>{
+    showToast('Sesja wygasła — zaloguj się ponownie');
+    if(state.activeSession){
+      // Zakończ aktywną sesję
+      endSessionNoReport();
+    } else {
+      state.role=null; state.currentWorker=null;
+      updateSidebar();
+      showScreen('roles');
+    }
+  }, ms);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1983,14 +2070,18 @@ function confirmDelSelected(){
 //  SETTINGS
 // ═══════════════════════════════════════════════════════
 function savePins(){
-  const a=document.getElementById('pinAdmin').value;
-  const d=document.getElementById('pinDism').value;
-  const t=document.getElementById('pinTransfer').value;
+  const a=document.getElementById('pinAdmin').value.trim();
+  const d=document.getElementById('pinDism').value.trim();
+  const t=document.getElementById('pinTransfer').value.trim();
+  // Walidacja — PIN musi mieć dokładnie 6 cyfr
+  if(a && (!/^\d{6}$/.test(a))){ showToast('PIN Admina musi mieć dokładnie 6 cyfr!'); return; }
+  if(d && (!/^\d{6}$/.test(d))){ showToast('PIN Demontażu musi mieć dokładnie 6 cyfr!'); return; }
+  if(t && (!/^\d{6}$/.test(t))){ showToast('PIN Obsługi musi mieć dokładnie 6 cyfr!'); return; }
   if(a) state.pins.admin=a;
   if(d) state.pins.dismantling=d;
   if(t) state.pins.transfer=t;
   lsSavePins(state.pins);
-  showToast('PINy zapisane!');
+  showToast('PINy zapisane! ✅');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5010,9 +5101,9 @@ window.addEventListener('DOMContentLoaded', function(){
     </div>
     <div class="card hidden" id="pinsCard">
       <div style="color:#6666a0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Zmiana PIN-ów</div>
-      <div class="pin-field"><label>Administrator</label><input type="number" id="pinAdmin" maxlength="6" placeholder="Nowy PIN"></div>
-      <div class="pin-field"><label>Demontaż</label><input type="number" id="pinDism" maxlength="6" placeholder="Nowy PIN"></div>
-      <div class="pin-field"><label>Obsługa demontażu</label><input type="number" id="pinTransfer" maxlength="6" placeholder="Nowy PIN"></div>
+      <div class="pin-field"><label>Administrator</label><input type="number" id="pinAdmin" maxlength="6" placeholder="6-cyfrowy PIN"></div>
+      <div class="pin-field"><label>Demontaż</label><input type="number" id="pinDism" maxlength="6" placeholder="6-cyfrowy PIN"></div>
+      <div class="pin-field"><label>Obsługa demontażu</label><input type="number" id="pinTransfer" maxlength="6" placeholder="6-cyfrowy PIN"></div>
       <button class="btn-primary" onclick="savePins()">Zapisz PINy</button>
     </div>
     <button class="btn-danger" onclick="showLogout()">🚪 Wyloguj</button>
