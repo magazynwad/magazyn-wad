@@ -853,7 +853,7 @@ function showFbStatus(ok){
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-const APP_VER = "2.44 (2026-06-09)";
+const APP_VER = "2.45 (2026-06-09)";
 
 // ── localStorage ─────────────────────────────────────────
 const LS_KEY = 'kodyKomponentow_codes';
@@ -1567,13 +1567,11 @@ function makeQRsvg(text,size){
   const{grid,n}=window._QR.make(text);
   const quiet=4;
   const total=n+quiet*2;
-  const cell=1; // 1 unit per module — viewBox skaluje do docelowego rozmiaru
-  let rects="";
+  let rects='<rect width="'+total+'" height="'+total+'" fill="#fff"/>';
   for(let r=0;r<n;r++)for(let c=0;c<n;c++)
     if(grid[r][c]===1)
-      rects+=`<rect x="${(c+quiet)*cell}" y="${(r+quiet)*cell}" width="${cell}" height="${cell}" fill="#000"/>`;
-  // viewBox zapewnia że każdy QR ma DOKŁADNIE ten sam rozmiar w px
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${total} ${total}" style="background:#fff;display:block">${rects}</svg>`;
+      rects+='<rect x="'+(c+quiet)+'" y="'+(r+quiet)+'" width="1" height="1" fill="#000"/>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 '+total+' '+total+'" shape-rendering="crispEdges" style="display:block">'+rects+'</svg>';
 }
 
 // ── Code128 barcode ─────────────────────────────────────────────────────
@@ -3529,8 +3527,8 @@ function buildReportHTML(worker,from,to,entries,sess,forPrint){
       // QR zawiera wszystkie dane do wklejenia w Excel: każde pole w osobnej kolumnie, Tab jako separator, Enter na końcu
       // Format: Lp\tKod\tIlość\tGrupa\tKategoria\tPracownik\n
       const qrData=`${lp}\t${e.code}\t${e.qty}\t${grupaNazwa}\t${katASCII}\t${entryWorker}\n`;
-      const qrSvg=makeQRsvg(qrData,120);
-      const bcSvg=makeBCsvg(e.code,200,65);
+      const qrSvg=makeQRsvg(qrData,100);
+      const bcSvg=makeBCsvg(e.code,190,62);
       return `<tr><td style="text-align:center;font-size:13px;font-weight:700;color:#6666a0">${lp}</td>
         <td style="font-family:monospace;font-size:15px;font-weight:800;padding:8px 12px">${e.code}</td>
         <td style="text-align:right;font-size:16px;font-weight:900;color:${acc};padding:8px 16px">${e.qty}</td>
