@@ -511,6 +511,8 @@ body.dark .date-range input[type=date]{background:#28283c;border-color:#36364a;c
         <div class="pin-dot" id="dp1"></div>
         <div class="pin-dot" id="dp2"></div>
         <div class="pin-dot" id="dp3"></div>
+        <div class="pin-dot" id="dp4"></div>
+        <div class="pin-dot" id="dp5"></div>
       </div>
       <div class="pin-err hidden" id="delPinErr">Błędny PIN</div>
       <div class="pin-grid" style="margin-top:8px">
@@ -853,7 +855,7 @@ function showFbStatus(ok){
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
-const APP_VER = "2.45 (2026-06-09)";
+const APP_VER = "2.46 (2026-06-09)";
 
 // ── localStorage ─────────────────────────────────────────
 const LS_KEY = 'kodyKomponentow_codes';
@@ -2020,13 +2022,13 @@ function delShowPin(){
   document.getElementById('delStep2').style.display='';
 }
 function updateDelPinDots(){
-  [0,1,2,3].forEach(i=>{
+  for(let i=0;i<PIN_LENGTH;i++){
     const d=document.getElementById('dp'+i);
     if(d){ d.classList.toggle('filled',i<_delPin.length); d.classList.remove('err'); }
-  });
+  }
 }
 function delPinPress(d){
-  if(_delPin.length>=6) return;
+  if(_delPin.length>=PIN_LENGTH) return;
   _delPin+=d;
   updateDelPinDots();
   const correct=state.pins[state.role]||'';
@@ -2034,7 +2036,7 @@ function delPinPress(d){
     if(_delPin===correct){
       setTimeout(confirmDelSelected, 180);
     } else {
-      [0,1,2,3].forEach(i=>{ const el=document.getElementById('dp'+i); if(el){el.classList.add('err');el.classList.remove('filled');} });
+      for(let i=0;i<PIN_LENGTH;i++){ const el=document.getElementById('dp'+i); if(el){el.classList.add('err');el.classList.remove('filled');} }
       document.getElementById('delPinErr').classList.remove('hidden');
       setTimeout(()=>{ _delPin=''; document.getElementById('delPinErr').classList.add('hidden'); updateDelPinDots(); }, 400);
     }
@@ -2683,13 +2685,13 @@ function delAllShowPin(){
   document.getElementById('delAllStep2').style.display='';
 }
 function updateDelAllDots(){
-  [0,1,2,3].forEach(i=>{
+  for(let i=0;i<PIN_LENGTH;i++){
     const d=document.getElementById('dap'+i);
     if(d){d.classList.toggle('filled',i<_delAllPin.length);d.classList.remove('err');}
-  });
+  }
 }
 function delAllPinPress(d){
-  if(_delAllPin.length>=6)return;
+  if(_delAllPin.length>=PIN_LENGTH)return;
   _delAllPin+=d;
   updateDelAllDots();
   const correct=state.pins['admin']||'';
@@ -2700,7 +2702,7 @@ function delAllPinPress(d){
         document.getElementById('delAllStep3').style.display='';
       },180);
     } else {
-      [0,1,2,3].forEach(i=>{const el=document.getElementById('dap'+i);if(el){el.classList.add('err');el.classList.remove('filled');}});
+      for(let i=0;i<PIN_LENGTH;i++){const el=document.getElementById('dap'+i);if(el){el.classList.add('err');el.classList.remove('filled');}}
       document.getElementById('delAllPinErr').classList.remove('hidden');
       setTimeout(()=>{_delAllPin='';document.getElementById('delAllPinErr').classList.add('hidden');updateDelAllDots();},400);
     }
@@ -2935,13 +2937,13 @@ function cleanShowPin(){
   updateCleanPinDots();
 }
 function updateCleanPinDots(){
-  [0,1,2,3].forEach(i=>{
+  for(let i=0;i<PIN_LENGTH;i++){
     const d=document.getElementById('cp'+i);
     if(d){d.classList.toggle('filled',i<_cleanPinVal.length);d.classList.remove('err');}
-  });
+  }
 }
 function cleanPinPress(d){
-  if(_cleanPinVal.length>=6) return;
+  if(_cleanPinVal.length>=PIN_LENGTH) return;
   _cleanPinVal+=d;
   updateCleanPinDots();
   const correct=state.pins[state.role]||'';
@@ -2949,7 +2951,7 @@ function cleanPinPress(d){
     if(_cleanPinVal===correct){
       setTimeout(doCleanReports, 180);
     } else {
-      [0,1,2,3].forEach(i=>{const el=document.getElementById('cp'+i);if(el){el.classList.add('err');el.classList.remove('filled');}});
+      for(let i=0;i<PIN_LENGTH;i++){const el=document.getElementById('cp'+i);if(el){el.classList.add('err');el.classList.remove('filled');}}
       document.getElementById('cleanPinErr').classList.remove('hidden');
       setTimeout(()=>{ _cleanPinVal=''; document.getElementById('cleanPinErr').classList.add('hidden'); updateCleanPinDots(); }, 400);
     }
@@ -4897,6 +4899,8 @@ window.addEventListener('DOMContentLoaded', function(){
         <div class="pin-dot" id="dap1"></div>
         <div class="pin-dot" id="dap2"></div>
         <div class="pin-dot" id="dap3"></div>
+        <div class="pin-dot" id="dap4"></div>
+        <div class="pin-dot" id="dap5"></div>
       </div>
       <div class="pin-err hidden" id="delAllPinErr">Błędny PIN Administratora</div>
       <div class="pin-grid" style="margin-top:8px">
@@ -4968,6 +4972,7 @@ window.addEventListener('DOMContentLoaded', function(){
       <div style="display:flex;justify-content:center;gap:8px;margin-bottom:6px">
         <div class="pin-dot" id="cp0"></div><div class="pin-dot" id="cp1"></div>
         <div class="pin-dot" id="cp2"></div><div class="pin-dot" id="cp3"></div>
+        <div class="pin-dot" id="cp4"></div><div class="pin-dot" id="cp5"></div>
       </div>
       <div class="pin-err hidden" id="cleanPinErr">Błędny PIN</div>
       <div class="pin-grid" style="margin-top:8px">
